@@ -1,0 +1,40 @@
+# Builds and pushes .woodpecker/Dockerfile. Split out of the old
+# .woodpecker/ci.yaml into its own workflow, matching
+# atklab/enochecker3's .woodpecker/ci-image.yml -- a single-file
+# pipeline can't skip a step only some of its dependents need, so the
+# image build ran (or was individually `when.path`-skipped) inside the
+# same workflow as the checks it feeds, which is harder to reason about
+# than two workflows joined by depends_on. test.yml declares a
+# workflow-level `depends_on: [ci-image]` (optional: true, so test.yml
+# still runs when this workflow is skipped) and pulls this image with
+# `pull: true` so a run that *did* rebuild it picks up the fresh
+# `:latest` instead of a stale cached copy.
+#
+# Builds with the official woodpeckerci/plugin-docker-buildx plugin,
+# which brings its own embedded buildkit and handles registry login
+# itself from the username/password settings below. Creds come from the
+# REGISTRY_USERNAME/REGISTRY_PASSWORD Woodpecker secrets (provisioned
+# out of band, per-repo or org-wide).
+
+when:
+  - event: push
+    branch: main
+    path: .woodpecker/Dockerfile
+  - event: pull_request
+    path: .woodpecker/Dockerfile
+  - event: manual
+    path: .woodpecker/Dockerfile
+
+steps:
+  - name: ci-image
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: oci.atklab.cloud/enochecker-core/enochecker-core-ci
+      tags: latest
+      dockerfile: .woodpecker/Dockerfile
+      context: .
+      registry: oci.atklab.cloud
+      username:
+        from_secret: REGISTRY_USERNAME
+      password:
+        from_secret: REGISTRY_PASSWORD

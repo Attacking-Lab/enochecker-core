@@ -1,0 +1,63 @@
+# The actual format/lint/mypy/test checks, split out of the old
+# .woodpecker/ci.yaml so the ci-image build (see ci-image.yml) is its
+# own workflow instead of a step these depend on directly -- matching
+# atklab/enochecker3's split into ci-image.yml + test.yml. Runs once
+# against Python 3.13 (the .woodpecker/Dockerfile base, and the newest
+# supported version); unlike enochecker3 there's no per-version matrix
+# here, since a baked CI image can't serve multiple interpreters without
+# either building N images or installing N into one.
+#
+# format/lint/mypy/test depend on nothing but this workflow's
+# `depends_on: [ci-image]` (optional: true, so this still runs when
+# ci-image.yml is skipped because the Dockerfile didn't change), so
+# Woodpecker runs them concurrently. Each sets `pull: true` so a run
+# that *did* rebuild the image picks up the fresh `:latest` instead of
+# a stale cached copy.
+#
+# UV_FLAGS uses --no-config rather than --isolated: uv 0.12 deprecated
+# --isolated in favour of --no-config (same effect -- skip discovering
+# pyproject.toml/uv.toml config -- new name), so the old flag now just
+# prints a deprecation warning on every invocation.
+
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+  - event: manual
+
+depends_on:
+  - name: ci-image
+    optional: true
+
+steps:
+  - name: format
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --no-config --frozen"
+    commands:
+      - just -v format
+
+  - name: lint
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --no-config --frozen"
+    commands:
+      - just -v lint
+
+  - name: mypy
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --no-config --frozen"
+    commands:
+      - just -v mypy
+
+  - name: test
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --no-config --frozen"
+    commands:
+      - just -v test
