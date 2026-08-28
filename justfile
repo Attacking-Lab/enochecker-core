@@ -35,6 +35,12 @@ ci_image := env_var_or_default("CI_IMAGE", "oci.atklab.cloud/enochecker-core/eno
 ci_image_tag := env_var_or_default("CI_IMAGE_TAG", "latest")
 ci_image_ref := ci_image + ":" + ci_image_tag
 
+# Build every container image in this repo
+image-build: ci-image-build
+
+# Build and push every container image in this repo
+image-push: ci-image-push
+
 # Build the Woodpecker CI runner image
 ci-image-build:
 	docker build -f .woodpecker/Dockerfile -t {{ci_image_ref}} .
