@@ -14,24 +14,19 @@
 #
 # `ci-image` builds and pushes the .woodpecker/Dockerfile runner image
 # itself (same as the justfile's ci-image-build/ci-image-push recipes,
-# run by hand). It only runs when .woodpecker/Dockerfile changed
-# (`when.path`); the check steps depend on it with `optional: true` so
-# they still run when it's skipped, and set `pull: true` so a pipeline
-# that did rebuild the image picks up the fresh `:latest` instead of a
-# stale cached copy.
-#
-# This agent runs steps under the sysbox runtime, which lets a plain,
-# unprivileged `docker:dind` step run its own nested dockerd safely --
-# no `privileged: true` and no separate dind service needed.
-# `dockerd-entrypoint.sh` is started in the background by hand, since
-# Woodpecker replaces the image's own entrypoint with the step's
-# `commands:`, then the following commands wait for the daemon socket
-# before touching it.
-#
-# Pushing to oci.atklab.cloud authenticates via oci.atklab.cloud being
-# registered as a registry in this repo's Woodpecker project settings
-# (provisioned out of band) rather than a secrets-driven `docker login`
-# here.
+# run by hand), via woodpeckerci/plugin-docker-buildx rather than a raw
+# `docker:dind` step + hand-rolled `docker build`/`docker push` -- the
+# plugin brings its own embedded buildkit (still fine under this
+# agent's sysbox runtime, same as the old dind approach) and handles
+# registry login itself from the `username`/`password` settings below,
+# instead of relying on oci.atklab.cloud being registered as a registry
+# in this repo's Woodpecker project settings out of band. Creds come
+# from the REGISTRY_USERNAME/REGISTRY_PASSWORD Woodpecker secrets
+# (provisioned out of band, per-repo or org-wide). The step only runs
+# when .woodpecker/Dockerfile changed (`when.path`); the check steps
+# depend on it with `optional: true` so they still run when it's
+# skipped, and set `pull: true` so a pipeline that did rebuild the
+# image picks up the fresh `:latest` instead of a stale cached copy.
 
 when:
   - event: push
@@ -41,12 +36,17 @@ when:
 
 steps:
   ci-image:
-    image: docker:dind
-    commands:
-      - dockerd-entrypoint.sh &
-      - timeout 30 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
-      - docker build -f .woodpecker/Dockerfile -t oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest .
-      - docker push oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      repo: oci.atklab.cloud/enochecker-core/enochecker-core-ci
+      tags: latest
+      dockerfile: .woodpecker/Dockerfile
+      context: .
+      registry: oci.atklab.cloud
+      username:
+        from_secret: REGISTRY_USERNAME
+      password:
+        from_secret: REGISTRY_PASSWORD
     when:
       - path: .woodpecker/Dockerfile
 
