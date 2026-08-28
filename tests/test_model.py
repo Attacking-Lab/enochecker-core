@@ -7,6 +7,9 @@ from enochecker_core import (
 )
 import json
 
+import pytest
+from pydantic import ValidationError
+
 
 def test_serialize_result_message():
     msg = CheckerResultMessage(
@@ -72,7 +75,7 @@ def test_serialize_info_message():
         flag_variants=3,
         noise_variants=2,
         havoc_variants=2,
-        exploit_variants=0,
+        exploit_variants=[0, 1, 2, 0],
         test_variants=3,
     )
     msg_ = {
@@ -80,8 +83,32 @@ def test_serialize_info_message():
         "flagVariants": 3,
         "noiseVariants": 2,
         "havocVariants": 2,
-        "exploitVariants": 0,
+        "exploitVariants": [0, 1, 2, 0],
         "testVariants": 3,
     }
     assert msg == CheckerInfoMessage.model_validate_json(json.dumps(msg_), strict=True)
     assert json.loads(msg.model_dump_json()) == msg_
+
+
+def test_info_message_rejects_exploit_variant_count():
+    msg_ = {
+        "serviceName": "Dummy Service",
+        "flagVariants": 3,
+        "noiseVariants": 2,
+        "havocVariants": 2,
+        "exploitVariants": 3,
+        "testVariants": 3,
+    }
+    with pytest.raises(ValidationError):
+        CheckerInfoMessage.model_validate_json(json.dumps(msg_), strict=True)
+
+
+def test_info_message_exploit_variant_out_of_range():
+    with pytest.raises(ValidationError):
+        CheckerInfoMessage(
+            service_name="Dummy Service",
+            flag_variants=2,
+            noise_variants=0,
+            havoc_variants=0,
+            exploit_variants=[0, 2],
+        )

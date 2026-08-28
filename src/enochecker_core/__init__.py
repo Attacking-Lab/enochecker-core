@@ -9,7 +9,12 @@ __all__ = [
 
 from enum import Enum
 from pydantic.alias_generators import to_camel
-from pydantic import AliasGenerator, BaseModel as PydanticBaseModel, ConfigDict
+from pydantic import (
+    AliasGenerator,
+    BaseModel as PydanticBaseModel,
+    ConfigDict,
+    model_validator,
+)
 
 
 class CheckerTaskResult(str, Enum):
@@ -50,8 +55,21 @@ class CheckerInfoMessage(BaseModel):
     flag_variants: int
     noise_variants: int
     havoc_variants: int
-    exploit_variants: int
+    # Indexed by exploit variant id, each entry is the flag variant (flag store)
+    # that exploit targets, so the length is the number of exploit variants.
+    exploit_variants: list[int]
     test_variants: int = 0
+
+    @model_validator(mode="after")
+    def _validate_exploit_variants(self) -> "CheckerInfoMessage":
+        for exploit_variant_id, flag_variant_id in enumerate(self.exploit_variants):
+            if not 0 <= flag_variant_id < self.flag_variants:
+                raise ValueError(
+                    f"exploit variant {exploit_variant_id} targets flag variant "
+                    f"{flag_variant_id}, which is not in range(0, {self.flag_variants})"
+                )
+
+        return self
 
 
 class CheckerResultMessage(BaseModel):
