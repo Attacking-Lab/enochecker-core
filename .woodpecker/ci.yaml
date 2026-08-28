@@ -1,0 +1,107 @@
+# Splits the old .woodpecker.yml's single linear step (format+lint+mypy+
+# build all in one `ci` step, matrixed across Python 3.10-3.13) into
+# separate steps that run in parallel via Woodpecker's depends_on DAG
+# mode, matching atklab/enochecker-exploit's .woodpecker/ci.yaml.
+#
+# The old pipeline matrixed across Python 3.10-3.13 by picking a
+# different `image: python:${PYTHON_VERSION}` per run. A baked CI image
+# (this repo's own .woodpecker/Dockerfile) can't do that without either
+# building N images or installing N interpreters into one, so this runs
+# once against 3.13 (the Dockerfile's base, and the newest supported
+# version) -- the same one-version tradeoff already made on this repo's
+# src4/ci branch (.src4-ci.yml) and by enochecker-exploit's own
+# .woodpecker/ci.yaml.
+#
+# `ci-image` builds and pushes the .woodpecker/Dockerfile runner image
+# itself (same as the justfile's ci-image-build/ci-image-push recipes,
+# run by hand). It only runs when .woodpecker/Dockerfile changed
+# (`when.path`); the check steps depend on it with `optional: true` so
+# they still run when it's skipped, and set `pull: true` so a pipeline
+# that did rebuild the image picks up the fresh `:latest` instead of a
+# stale cached copy.
+#
+# This agent runs steps under the sysbox runtime, which lets a plain,
+# unprivileged `docker:dind` step run its own nested dockerd safely --
+# no `privileged: true` and no separate dind service needed.
+# `dockerd-entrypoint.sh` is started in the background by hand, since
+# Woodpecker replaces the image's own entrypoint with the step's
+# `commands:`, then the following commands wait for the daemon socket
+# before touching it.
+#
+# Pushing to oci.atklab.cloud authenticates via oci.atklab.cloud being
+# registered as a registry in this repo's Woodpecker project settings
+# (provisioned out of band) rather than a secrets-driven `docker login`
+# here.
+
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+  - event: manual
+
+steps:
+  ci-image:
+    image: docker:dind
+    commands:
+      - dockerd-entrypoint.sh &
+      - timeout 30 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
+      - docker build -f .woodpecker/Dockerfile -t oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest .
+      - docker push oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    when:
+      - path: .woodpecker/Dockerfile
+
+  format:
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - just -v format
+
+  lint:
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - just -v lint
+
+  mypy:
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - just -v mypy
+
+  test:
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - just -v test
+
+  build:
+    image: oci.atklab.cloud/enochecker-core/enochecker-core-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - just -v build
+      - pip install dist/enochecker_core-*.tar.gz
