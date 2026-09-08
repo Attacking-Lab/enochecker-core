@@ -47,6 +47,7 @@ def test_serialize_task_message():
         flag_regex=None,
         flag_hash=None,
         attack_info=None,
+        seed="cafebabe",
     )
     msg_ = {
         "taskId": 123,
@@ -64,6 +65,7 @@ def test_serialize_task_message():
         "flagRegex": None,
         "flagHash": None,
         "attackInfo": None,
+        "seed": "cafebabe",
     }
     assert msg == CheckerTaskMessage.model_validate_json(json.dumps(msg_), strict=True)
     assert json.loads(msg.model_dump_json()) == msg_

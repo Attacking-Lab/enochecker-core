@@ -95,6 +95,9 @@ class CheckerTaskMessage(BaseModel):
     flag_regex: str | None = None
     flag_hash: str | None = None
     attack_info: str | None = None
+    # Optional, caller-supplied seed for checker PRNG. Makes random checker
+    # behavior reproducible.
+    seed: str | None = None
 
 
 class EnoLogMessage(BaseModel):
