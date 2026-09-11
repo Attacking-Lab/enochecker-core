@@ -23,6 +23,25 @@ def test_serialize_result_message():
         "message": "Internal error occured",
         "attackInfo": "abc",
         "flag": "TESTFLAG",
+        "metadata": None,
+    }
+    assert msg == CheckerResultMessage.model_validate_json(
+        json.dumps(msg_), strict=True
+    )
+    assert json.loads(msg.model_dump_json()) == msg_
+
+
+def test_serialize_result_message_metadata():
+    msg = CheckerResultMessage(
+        result=CheckerTaskResult.OK,
+        metadata={"attempts": 3, "note": "slow", "nested": {"k": [1, 2]}},
+    )
+    msg_ = {
+        "result": "OK",
+        "message": None,
+        "attackInfo": None,
+        "flag": None,
+        "metadata": {"attempts": 3, "note": "slow", "nested": {"k": [1, 2]}},
     }
     assert msg == CheckerResultMessage.model_validate_json(
         json.dumps(msg_), strict=True

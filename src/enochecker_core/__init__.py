@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 from enum import Enum
+from typing import Any
 from pydantic.alias_generators import to_camel
 from pydantic import (
     AliasGenerator,
@@ -77,6 +78,8 @@ class CheckerResultMessage(BaseModel):
     message: str | None = None
     attack_info: str | None = None
     flag: str | None = None
+    # Free-form JSON-serializable data outside the checker spec.
+    metadata: dict[str, Any] | None = None
 
 
 class CheckerTaskMessage(BaseModel):
