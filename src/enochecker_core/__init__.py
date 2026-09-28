@@ -1,8 +1,10 @@
 __all__ = [
     "CheckerTaskResult",
     "CheckerMethod",
+    "CheckerHealthStatus",
     "CheckerInfoMessage",
     "CheckerResultMessage",
+    "CheckerHealthMessage",
     "EnoLogMessage",
     "CheckerTaskMessage",
 ]
@@ -36,6 +38,14 @@ class CheckerMethod(str, Enum):
     HAVOC = "havoc"
     EXPLOIT = "exploit"
     TEST = "test"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class CheckerHealthStatus(str, Enum):
+    OK = "ok"
+    ERROR = "error"
 
     def __str__(self) -> str:
         return self.value
@@ -80,6 +90,15 @@ class CheckerResultMessage(BaseModel):
     flag: str | None = None
     # Free-form JSON-serializable data outside the checker spec.
     metadata: dict[str, Any] | None = None
+
+
+class CheckerHealthMessage(BaseModel):
+    # A checker may report implementation-specific fields next to the status,
+    # so a consumer validating this model keeps them instead of dropping them.
+    model_config = ConfigDict(extra="allow")
+
+    status: CheckerHealthStatus
+    detail: str | None = None
 
 
 class CheckerTaskMessage(BaseModel):

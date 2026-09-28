@@ -2,6 +2,8 @@ from enochecker_core import (
     CheckerMethod,
     CheckerResultMessage,
     CheckerTaskMessage,
+    CheckerHealthMessage,
+    CheckerHealthStatus,
     CheckerInfoMessage,
     CheckerTaskResult,
 )
@@ -133,3 +135,33 @@ def test_info_message_exploit_variant_out_of_range():
             havoc_variants=0,
             exploit_variants=[0, 2],
         )
+
+
+def test_serialize_health_message():
+    msg = CheckerHealthMessage(
+        status=CheckerHealthStatus.ERROR,
+        detail="mongo unreachable",
+    )
+    msg_ = {
+        "status": "error",
+        "detail": "mongo unreachable",
+    }
+    assert msg == CheckerHealthMessage.model_validate_json(
+        json.dumps(msg_), strict=True
+    )
+    assert json.loads(msg.model_dump_json()) == msg_
+
+
+def test_health_message_keeps_extra_fields():
+    """A checker may report implementation-specific fields next to the status."""
+    msg = CheckerHealthMessage.model_validate({"status": "ok", "mongo": "up"})
+    assert json.loads(msg.model_dump_json()) == {
+        "status": "ok",
+        "detail": None,
+        "mongo": "up",
+    }
+
+
+def test_health_message_rejects_unknown_status():
+    with pytest.raises(ValidationError):
+        CheckerHealthMessage.model_validate({"status": "degraded"})
