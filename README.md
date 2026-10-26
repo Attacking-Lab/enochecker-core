@@ -1,7 +1,7 @@
 # enochecker_core
 
 Python library providing typed message models (dataclasses and enums) for the
-[enowars checker protocol](https://github.com/enowars/specification).
+ENOchecker task protocol.
 
 ## Install
 
@@ -10,6 +10,9 @@ pip install enochecker-core
 ```
 
 Requires Python ≥ 3.10.
+
+Minor versions are (usually) bumped in sync with
+[enochecker3](https://github.com/attacking-lab/enochecker3).
 
 ## Usage
 
