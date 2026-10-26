@@ -1,0 +1,8 @@
+enochecker-core
+Copyright (c) 2019 ENOWARS contributors
+
+This software includes the following third-party runtime dependency:
+
+  pydantic (https://github.com/pydantic/pydantic)
+  Copyright (c) Samuel Colvin and contributors
+  License: MIT

@@ -10,6 +10,7 @@ authors = [
 	{ name = "Trolldemorted", email = "benediktradtke@gmail.com" }
 ]
 description = "Library for enochecker data structures"
+license = "MIT"
 
 [dependency-groups]
 dev = [
